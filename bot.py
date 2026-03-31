@@ -431,11 +431,12 @@ async def stats(interaction: discord.Interaction, uye: discord.Member = None):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def yetkisiz(interaction: discord.Interaction) -> bool:
-    """Kullanıcının yönetici rolü var mı kontrol eder."""
-    return any(r.name == "👑 Anipal Yöneticisi" for r in interaction.user.roles)
+    """Yönetici izni veya administrator yetkisi var mı kontrol eder."""
+    return interaction.user.guild_permissions.administrator
 
 def moderator_mi(interaction: discord.Interaction) -> bool:
-    return any(r.name in ("👑 Anipal Yöneticisi", "🛡️ Anipal Discord Moderatör") for r in interaction.user.roles)
+    perms = interaction.user.guild_permissions
+    return perms.administrator or perms.manage_messages or perms.kick_members or perms.ban_members
 
 
 @bot.tree.command(name="duyur", description="Duyurular kanalına @everyone duyurusu gönderir.")
