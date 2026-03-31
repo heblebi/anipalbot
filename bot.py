@@ -232,6 +232,40 @@ async def on_ready():
 
 
 @bot.event
+async def on_member_update(before: discord.Member, after: discord.Member):
+    """Server boost logu."""
+    before_boost = before.premium_since
+    after_boost  = after.premium_since
+
+    # Boost başladı
+    if before_boost is None and after_boost is not None:
+        ch = (discord.utils.get(after.guild.text_channels, name="🦊│site-destek") or
+              discord.utils.get(after.guild.text_channels, name="site-destek"))
+        if ch:
+            embed = discord.Embed(
+                title="🚀 Sunucu Boost'landı!",
+                description=f"{after.mention} sunucuyu **boost'ladı**! Teşekkürler 💜",
+                color=discord.Color.from_rgb(255, 105, 180),
+            )
+            embed.set_thumbnail(url=after.display_avatar.url)
+            embed.set_footer(text=f"Toplam boost: {after.guild.premium_subscription_count}")
+            await ch.send(embed=embed)
+
+    # Boost kalktı
+    elif before_boost is not None and after_boost is None:
+        ch = (discord.utils.get(after.guild.text_channels, name="🦊│site-destek") or
+              discord.utils.get(after.guild.text_channels, name="site-destek"))
+        if ch:
+            embed = discord.Embed(
+                title="💔 Boost Kaldırıldı",
+                description=f"{after.mention} boost'unu kaldırdı.",
+                color=discord.Color.from_rgb(150, 150, 150),
+            )
+            embed.set_footer(text=f"Toplam boost: {after.guild.premium_subscription_count}")
+            await ch.send(embed=embed)
+
+
+@bot.event
 async def on_member_join(member: discord.Member):
     guild = member.guild
 
