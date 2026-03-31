@@ -427,130 +427,141 @@ async def stats(interaction: discord.Interaction, uye: discord.Member = None):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  PREFIX KOMUTLAR
+#  SLASH KOMUTLAR
 # ══════════════════════════════════════════════════════════════════════════════
 
-@bot.command(name="duyur")
-@commands.has_role("👑 Anipal Yöneticisi")
-async def duyur(ctx, *, mesaj: str):
-    for name in ["🦊│duyurular", "duyurular"]:
-        ch = discord.utils.get(ctx.guild.text_channels, name=name)
-        if ch:
-            break
+def yetkisiz(interaction: discord.Interaction) -> bool:
+    """Kullanıcının yönetici rolü var mı kontrol eder."""
+    return any(r.name == "👑 Anipal Yöneticisi" for r in interaction.user.roles)
+
+def moderator_mi(interaction: discord.Interaction) -> bool:
+    return any(r.name in ("👑 Anipal Yöneticisi", "🛡️ Anipal Discord Moderatör") for r in interaction.user.roles)
+
+
+@bot.tree.command(name="duyur", description="Duyurular kanalına @everyone duyurusu gönderir.")
+@app_commands.describe(mesaj="Duyuru metni")
+async def duyur(interaction: discord.Interaction, mesaj: str):
+    if not yetkisiz(interaction):
+        await interaction.response.send_message("❌ Bu komutu kullanma yetkin yok.", ephemeral=True)
+        return
+    ch = discord.utils.get(interaction.guild.text_channels, name="🦊│duyurular") or \
+         discord.utils.get(interaction.guild.text_channels, name="duyurular")
     if not ch:
-        await ctx.send("Kanal bulunamadi.")
+        await interaction.response.send_message("❌ Duyurular kanalı bulunamadı.", ephemeral=True)
         return
     embed = discord.Embed(title="📢 Duyuru", description=mesaj, color=discord.Color.from_rgb(255, 165, 0))
-    embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
+    embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
     embed.set_footer(text="Anipal Ekibi")
     await ch.send("@everyone", embed=embed)
-    await ctx.message.delete()
+    await interaction.response.send_message("✅ Duyuru gönderildi.", ephemeral=True)
 
 
-@bot.command(name="guncelle")
-@commands.has_role("👑 Anipal Yöneticisi")
-async def guncelle(ctx, *, mesaj: str):
-    for name in ["🦊│guncellemeler", "guncellemeler"]:
-        ch = discord.utils.get(ctx.guild.text_channels, name=name)
-        if ch:
-            break
+@bot.tree.command(name="guncelle", description="Güncellemeler kanalına güncelleme mesajı gönderir.")
+@app_commands.describe(mesaj="Güncelleme metni")
+async def guncelle(interaction: discord.Interaction, mesaj: str):
+    if not yetkisiz(interaction):
+        await interaction.response.send_message("❌ Bu komutu kullanma yetkin yok.", ephemeral=True)
+        return
+    ch = discord.utils.get(interaction.guild.text_channels, name="🦊│guncellemeler") or \
+         discord.utils.get(interaction.guild.text_channels, name="guncellemeler")
     if not ch:
-        await ctx.send("Kanal bulunamadi.")
+        await interaction.response.send_message("❌ Güncellemeler kanalı bulunamadı.", ephemeral=True)
         return
-    embed = discord.Embed(title="🔄 Guncelleme", description=mesaj, color=discord.Color.from_rgb(88, 101, 242))
-    embed.set_footer(text="Anipal Gelistirici Ekibi")
+    embed = discord.Embed(title="🔄 Güncelleme", description=mesaj, color=discord.Color.from_rgb(88, 101, 242))
+    embed.set_footer(text="Anipal Geliştirici Ekibi")
     await ch.send(embed=embed)
-    await ctx.message.delete()
+    await interaction.response.send_message("✅ Güncelleme gönderildi.", ephemeral=True)
 
 
-@bot.command(name="yayin")
-@commands.has_permissions(manage_roles=True)
-async def yayin_ver(ctx, member: discord.Member):
-    role = discord.utils.get(ctx.guild.roles, name="📡 Yayın Yetkisi")
-    if not role:
-        await ctx.send("Yayin Yetkisi rolu bulunamadi.")
+@bot.tree.command(name="yayin", description="Üyeye yayın yetkisi verir veya alır.")
+@app_commands.describe(uye="Yayın yetkisi verilecek üye")
+async def yayin(interaction: discord.Interaction, uye: discord.Member):
+    if not moderator_mi(interaction):
+        await interaction.response.send_message("❌ Bu komutu kullanma yetkin yok.", ephemeral=True)
         return
-    if role in member.roles:
-        await member.remove_roles(role)
-        await ctx.send(f"Yayin yetkisi kaldirildi: {member.mention}")
+    role = discord.utils.get(interaction.guild.roles, name="📡 Yayın Yetkisi")
+    if not role:
+        await interaction.response.send_message("❌ Yayın Yetkisi rolü bulunamadı.", ephemeral=True)
+        return
+    if role in uye.roles:
+        await uye.remove_roles(role)
+        await interaction.response.send_message(f"📡 {uye.mention} yayın yetkisi **kaldırıldı**.")
     else:
-        await member.add_roles(role)
-        await ctx.send(f"{member.mention} artik yayin acabilir!")
+        await uye.add_roles(role)
+        await interaction.response.send_message(f"📡 {uye.mention} artık sesli kanalda **yayın açabilir**!")
 
 
-@bot.command(name="rol")
-@commands.has_permissions(manage_roles=True)
-async def rol_ver(ctx, member: discord.Member, *, rol_adi: str):
-    role = discord.utils.get(ctx.guild.roles, name=rol_adi)
-    if not role:
-        await ctx.send(f"Rol bulunamadi: {rol_adi}")
+@bot.tree.command(name="rol", description="Üyeye rol verir.")
+@app_commands.describe(uye="Rol verilecek üye", rol_adi="Verilecek rolün tam adı")
+async def rol_ver(interaction: discord.Interaction, uye: discord.Member, rol_adi: str):
+    if not moderator_mi(interaction):
+        await interaction.response.send_message("❌ Bu komutu kullanma yetkin yok.", ephemeral=True)
         return
-    await member.add_roles(role)
-    await ctx.send(f"{member.mention} -> {rol_adi}")
+    role = discord.utils.get(interaction.guild.roles, name=rol_adi)
+    if not role:
+        await interaction.response.send_message(f"❌ `{rol_adi}` adında bir rol bulunamadı.", ephemeral=True)
+        return
+    await uye.add_roles(role)
+    await interaction.response.send_message(f"✅ {uye.mention} → **{rol_adi}**")
 
 
-@bot.command(name="ban")
-@commands.has_permissions(ban_members=True)
-async def ban(ctx, member: discord.Member, *, sebep: str = "Sebep belirtilmedi."):
-    await member.ban(reason=sebep)
-    await ctx.send(f"{member.mention} yasaklandi. Sebep: {sebep}")
+@bot.tree.command(name="ban", description="Üyeyi sunucudan yasaklar.")
+@app_commands.describe(uye="Yasaklanacak üye", sebep="Yasaklama sebebi")
+async def ban(interaction: discord.Interaction, uye: discord.Member, sebep: str = "Sebep belirtilmedi."):
+    if not moderator_mi(interaction):
+        await interaction.response.send_message("❌ Bu komutu kullanma yetkin yok.", ephemeral=True)
+        return
+    await uye.ban(reason=sebep)
+    await interaction.response.send_message(f"🔨 {uye.mention} yasaklandı. Sebep: {sebep}")
 
 
-@bot.command(name="kick")
-@commands.has_permissions(kick_members=True)
-async def kick(ctx, member: discord.Member, *, sebep: str = "Sebep belirtilmedi."):
-    await member.kick(reason=sebep)
-    await ctx.send(f"{member.mention} atildi. Sebep: {sebep}")
+@bot.tree.command(name="kick", description="Üyeyi sunucudan atar.")
+@app_commands.describe(uye="Atılacak üye", sebep="Atma sebebi")
+async def kick(interaction: discord.Interaction, uye: discord.Member, sebep: str = "Sebep belirtilmedi."):
+    if not moderator_mi(interaction):
+        await interaction.response.send_message("❌ Bu komutu kullanma yetkin yok.", ephemeral=True)
+        return
+    await uye.kick(reason=sebep)
+    await interaction.response.send_message(f"👢 {uye.mention} atıldı. Sebep: {sebep}")
 
 
-@bot.command(name="temizle")
-@commands.has_permissions(manage_messages=True)
-async def temizle(ctx, miktar: int = 10):
-    await ctx.channel.purge(limit=miktar + 1)
-    msg = await ctx.send(f"{miktar} mesaj silindi.")
-    await msg.delete(delay=3)
+@bot.tree.command(name="temizle", description="Kanaldan mesaj siler.")
+@app_commands.describe(miktar="Silinecek mesaj sayısı (varsayılan: 10)")
+async def temizle(interaction: discord.Interaction, miktar: int = 10):
+    if not moderator_mi(interaction):
+        await interaction.response.send_message("❌ Bu komutu kullanma yetkin yok.", ephemeral=True)
+        return
+    await interaction.response.send_message(f"🗑️ {miktar} mesaj siliniyor...", ephemeral=True)
+    await interaction.channel.purge(limit=miktar)
 
 
-@bot.command(name="bilgi")
-async def bilgi(ctx, member: discord.Member = None):
-    member = member or ctx.author
+@bot.tree.command(name="bilgi", description="Kullanıcı bilgisi ve level durumunu gösterir.")
+@app_commands.describe(uye="Bilgisi görüntülenecek üye")
+async def bilgi(interaction: discord.Interaction, uye: discord.Member = None):
+    member = uye or interaction.user
     data   = load_levels()
     user   = get_user(data, member.id)
     embed  = discord.Embed(title=f"👤 {member.display_name}", color=member.color)
     embed.set_thumbnail(url=member.display_avatar.url)
-    embed.add_field(name="Level",   value=str(user["level"]),    inline=True)
-    embed.add_field(name="Toplam XP", value=str(user["total_xp"]), inline=True)
-    embed.add_field(name="Roller", value=", ".join(r.name for r in member.roles[1:]) or "Yok", inline=False)
-    await ctx.send(embed=embed)
+    embed.add_field(name="🏅 Level",     value=str(user["level"]),    inline=True)
+    embed.add_field(name="✨ Toplam XP", value=str(user["total_xp"]), inline=True)
+    embed.add_field(name="🎭 Roller", value=", ".join(r.name for r in member.roles[1:]) or "Yok", inline=False)
+    await interaction.response.send_message(embed=embed)
 
 
-@bot.command(name="yardim")
-async def yardim(ctx):
-    embed = discord.Embed(title="Anipal Bot Komutlari", color=discord.Color.from_rgb(255, 100, 100))
-    embed.add_field(name="/stats [@uye]",      value="Seviye istatistikleri",        inline=False)
-    embed.add_field(name="!duyur [mesaj]",     value="Duyuru gonder (Yonetici)",     inline=False)
-    embed.add_field(name="!guncelle [mesaj]",  value="Guncelleme gonder (Yonetici)", inline=False)
-    embed.add_field(name="!yayin @kisi",       value="Yayin yetkisi ver/al (Mod)",   inline=False)
-    embed.add_field(name="!rol @kisi [rol]",   value="Rol ver (Mod)",                inline=False)
-    embed.add_field(name="!ban @kisi [sebep]", value="Yasakla (Mod)",                inline=False)
-    embed.add_field(name="!kick @kisi [sebep]",value="At (Mod)",                     inline=False)
-    embed.add_field(name="!temizle [sayi]",    value="Mesaj sil (Mod)",              inline=False)
-    embed.add_field(name="!bilgi [@kisi]",     value="Kullanici bilgisi",            inline=False)
-    await ctx.send(embed=embed)
-
-
-@bot.event
-async def on_command_error(ctx, error):
-    if isinstance(error, commands.MissingRole):
-        await ctx.send("Bu komutu kullanma yetkin yok.")
-    elif isinstance(error, commands.MissingPermissions):
-        await ctx.send("Yeterli yetkin yok.")
-    elif isinstance(error, commands.MemberNotFound):
-        await ctx.send("Kullanici bulunamadi.")
-    elif isinstance(error, commands.CommandNotFound):
-        pass
-    else:
-        await ctx.send(f"Hata: {error}")
+@bot.tree.command(name="yardim", description="Tüm bot komutlarını listeler.")
+async def yardim(interaction: discord.Interaction):
+    embed = discord.Embed(title="🤖 Anipal Bot Komutları", color=discord.Color.from_rgb(255, 100, 100))
+    embed.add_field(name="/stats [@uye]",       value="Seviye istatistikleri",         inline=False)
+    embed.add_field(name="/bilgi [@uye]",        value="Kullanıcı bilgisi",             inline=False)
+    embed.add_field(name="/duyur [mesaj]",       value="Duyuru gönder *(Yönetici)*",    inline=False)
+    embed.add_field(name="/guncelle [mesaj]",    value="Güncelleme gönder *(Yönetici)*",inline=False)
+    embed.add_field(name="/yayin @kisi",         value="Yayın yetkisi ver/al *(Mod)*",  inline=False)
+    embed.add_field(name="/rol @kisi [rol]",     value="Rol ver *(Mod)*",               inline=False)
+    embed.add_field(name="/ban @kisi [sebep]",   value="Yasakla *(Mod)*",               inline=False)
+    embed.add_field(name="/kick @kisi [sebep]",  value="At *(Mod)*",                    inline=False)
+    embed.add_field(name="/temizle [sayi]",      value="Mesaj sil *(Mod)*",             inline=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 if __name__ == "__main__":
