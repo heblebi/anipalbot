@@ -22,7 +22,7 @@ intents.message_content = True
 intents.reactions       = True
 intents.voice_states    = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="\x00", intents=intents)  # Prefix devre dışı
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  LEVEL SİSTEMİ — VERİ
